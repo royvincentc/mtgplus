@@ -12,7 +12,6 @@ import { DeckEditorPage } from './pages/DeckEditorPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CardsPage } from './pages/CardsPage';
 import { CommunityPage } from './pages/CommunityPage';
-import { AssistantPage } from './pages/AssistantPage';
 import { PlayRoom } from './pages/PlayRoom';
 
 // Protected Route Wrapper
@@ -47,7 +46,6 @@ export const AppRoutes = () => {
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/cards" element={<ProtectedRoute><CardsPage /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
-          <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
           
           {/* The actual Game Board */}
           <Route path="/play/:roomId" element={<ProtectedRoute><PlayRoom /></ProtectedRoute>} />

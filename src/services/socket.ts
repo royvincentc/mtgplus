@@ -34,8 +34,12 @@ const fakeSocket = {
     if (!eventHandlers[event]) eventHandlers[event] = [];
     eventHandlers[event].push(callback);
   },
-  off: (event: string) => {
-    delete eventHandlers[event];
+  off: (event: string, callback?: Function) => {
+    if (!callback) {
+      delete eventHandlers[event];
+    } else if (eventHandlers[event]) {
+      eventHandlers[event] = eventHandlers[event].filter(cb => cb !== callback);
+    }
   },
   disconnect: () => {
     if (channel) channel.unsubscribe();

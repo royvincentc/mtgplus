@@ -128,7 +128,10 @@ export const GameBoard: React.FC = () => {
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
   };
 
+  const updatePlayerLifeLocal = useGameStore(state => state.updatePlayerLifeLocal);
+
   const handleLifeChange = (playerId: string, delta: number) => {
+    updatePlayerLifeLocal(playerId, delta);
     const socket = getSocket();
     if (socket) {
       socket.emit('updateLife', { playerId, delta });
@@ -231,6 +234,45 @@ export const GameBoard: React.FC = () => {
             onLongPress={handleCardLongPress}
           />
         ))}
+      </div>
+
+      {/* Floating Players Life Tracker (Always accessible) */}
+      <div 
+        className="absolute top-4 left-4 z-30 bg-[#120f0a]/90 backdrop-blur-md border border-[#c5a059]/40 rounded-2xl p-3 shadow-2xl flex flex-col gap-2 min-w-[200px]"
+        onPointerDown={e => e.stopPropagation()}
+      >
+        <span className="text-[10px] text-[#c5a059] font-black uppercase tracking-widest flex items-center gap-1.5 border-b border-[#2d2417] pb-1.5">
+          <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> Life Tracker
+        </span>
+        <div className="space-y-2">
+          {Object.values(players).map(p => {
+            const isMe = p.id === myPlayerId;
+            return (
+              <div key={p.id} className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-bold text-white truncate max-w-[90px]">
+                  {p.name} {isMe && <span className="text-[9px] text-[#c5a059]">(You)</span>}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleLifeChange(p.id, -1)}
+                    className="w-6 h-6 rounded-md bg-[#221a10] hover:bg-[#34281a] border border-[#3e3221] text-white font-black text-xs flex items-center justify-center active:scale-95"
+                  >
+                    −
+                  </button>
+                  <span className="font-black text-sm text-[#e5c158] min-w-[24px] text-center">
+                    {p.life}
+                  </span>
+                  <button
+                    onClick={() => handleLifeChange(p.id, 1)}
+                    className="w-6 h-6 rounded-md bg-[#221a10] hover:bg-[#34281a] border border-[#3e3221] text-white font-black text-xs flex items-center justify-center active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {selectedCard && (
