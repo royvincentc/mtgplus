@@ -45,7 +45,9 @@ export interface GameState {
   setRoomInfo: (roomId: string, myPlayerId: string) => void;
   syncState: (cards: GameCard[], players: Record<string, PlayerState>, chat?: ChatMessage[]) => void;
   
-  updatePlayerLifeLocal: (playerId: string, life: number) => void;
+  updatePlayerLifeLocal: (playerId: string, delta: number) => void;
+  addPlayerLocal: (player: PlayerState) => void;
+  syncStateFromRemote: (payload: { cards: GameCard[], players: Record<string, PlayerState> }) => void;
   
   addCardLocal: (card: GameCard) => void;
   updateCardPositionLocal: (instanceId: string, x: number, y: number, zone: CardZone) => void;
@@ -70,19 +72,27 @@ export const useGameStore = create<GameState>((set) => ({
       chat: chat || state.chat 
   })),
 
-  updatePlayerLifeLocal: (playerId, life) => set((state) => {
+  syncStateFromRemote: (payload) => set(() => ({
+    cards: payload.cards,
+    players: payload.players,
+  })),
+
+  updatePlayerLifeLocal: (playerId, delta) => set((state) => {
     const p = state.players[playerId];
     if (!p) return state;
     return {
       players: {
         ...state.players,
-        [playerId]: { ...p, life }
+        [playerId]: { ...p, life: p.life + delta }
       }
     };
   }),
 
+  addPlayerLocal: (player) => set((state) => ({
+    players: { ...state.players, [player.id]: player }
+  })),
+
   addCardLocal: (card) => set((state) => {
-      // prevent duplicate add
       if (state.cards.find(c => c.instanceId === card.instanceId)) return state;
       return { cards: [...state.cards, card] };
   }),

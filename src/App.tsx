@@ -14,8 +14,7 @@ const App: React.FC = () => {
   const roomId = useGameStore(state => state.roomId);
 
   useEffect(() => {
-    const serverUrl = `http://${window.location.hostname}:3001`;
-    const socket = initSocket(serverUrl);
+    const socket = initSocket();
     
     socket.on('connect', () => setIsConnected(true));
     socket.on('disconnect', () => setIsConnected(false));

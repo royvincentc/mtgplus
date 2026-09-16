@@ -47,14 +47,18 @@ export const GameBoard: React.FC = () => {
     }
   }, [myPlayerId, players]);
 
-  const bindDrag = useDrag(({ movement: [dx, dy], memo = [x, y], event, active, tap }) => {
+  const bindDrag = useDrag(({ movement: [dx, dy], memo = [x, y], event, tap }) => {
     if (tap) return memo;
-    const e = event as unknown as MouseEvent;
+    
+    const isTouchEvent = 'touches' in event;
+    const isMiddleMouse = !isTouchEvent && (event as MouseEvent).button === 1;
+
     // Don't drag if we clicked a button or interactive element
-    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.interactive')) {
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('.interactive')) {
         return memo;
     }
-    if (isSpaceDown || e.button === 1 || e.touches) {
+    
+    if (isSpaceDown || isMiddleMouse || isTouchEvent) {
       setTransform(t => ({ ...t, x: memo[0] + dx, y: memo[1] + dy }));
       return memo;
     }

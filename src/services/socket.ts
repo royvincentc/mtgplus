@@ -24,9 +24,10 @@ const fakeSocket = {
     // But for some events like `joinRoom`, the local client needs a response.
     if (event === 'joinRoom') {
       const store = useGameStore.getState();
-      store.addPlayerLocal({ id: fakeSocket.id, name: payload.username, seatColor: payload.seatColor, life: 40 });
+      const newPlayer = { id: fakeSocket.id, name: payload.username, seatColor: payload.seatColor, life: 40, commanderDamage: {}, poison: 0 };
+      store.addPlayerLocal(newPlayer);
       // Tell others we joined
-      channel.send({ type: 'broadcast', event: 'playerJoined', payload: { id: fakeSocket.id, name: payload.username, seatColor: payload.seatColor, life: 40 }});
+      channel.send({ type: 'broadcast', event: 'playerJoined', payload: newPlayer});
     }
   },
   on: (event: string, callback: Function) => {
@@ -47,7 +48,7 @@ const triggerLocalEvent = (event: string, payload?: any) => {
   }
 };
 
-export const initSocket = (serverUrl: string) => {
+export const initSocket = () => {
   // We ignore serverUrl since we use Supabase from env
   const roomId = useGameStore.getState().roomId || 'default-room';
   
@@ -77,7 +78,7 @@ export const initSocket = (serverUrl: string) => {
   });
 
   channel.on('broadcast', { event: 'updateLife' }, ({ payload }) => {
-    useGameStore.getState().updateLifeLocal(payload.playerId, payload.delta);
+    useGameStore.getState().updatePlayerLifeLocal(payload.playerId, payload.delta);
   });
 
   channel.on('broadcast', { event: 'playerJoined' }, ({ payload }) => {
