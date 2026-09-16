@@ -3,6 +3,7 @@ import { useDrag } from '@use-gesture/react';
 import { useGameStore } from '../store/useGameStore';
 import type { GameCard } from '../store/useGameStore';
 import { getSocket } from '../services/socket';
+import { motion } from 'framer-motion';
 
 interface CardProps {
   card: GameCard;
@@ -19,11 +20,12 @@ export const Card: React.FC<CardProps> = ({ card, onTap, onLongPress }) => {
       return memo;
     }
     
-    if (!active) {
-      const newX = memo[0] + mx;
-      const newY = memo[1] + my;
-      updateCardPositionLocal(card.instanceId, newX, newY, card.zone);
-      
+    const newX = memo[0] + mx;
+    const newY = memo[1] + my;
+
+    if (active) {
+       updateCardPositionLocal(card.instanceId, newX, newY, card.zone);
+    } else {
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
@@ -37,11 +39,14 @@ export const Card: React.FC<CardProps> = ({ card, onTap, onLongPress }) => {
   }, { filterTaps: true });
 
   return (
-    <div
-      {...bind()}
-      className={`absolute w-24 h-36 bg-gray-700 rounded-lg shadow-lg border-2 border-gray-900 flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform ${card.tapped ? 'rotate-90' : ''}`}
+    <motion.div
+      {...(bind() as any)}
+      layout
+      animate={{ x: card.x, y: card.y, rotate: card.tapped ? 90 : 0 }}
+      whileHover={{ scale: 1.05 }}
+      whileDrag={{ scale: 1.1, zIndex: 100 }}
+      className="absolute w-24 h-36 bg-gray-700 rounded-lg shadow-lg border-2 border-gray-900 flex items-center justify-center cursor-grab active:cursor-grabbing"
       style={{
-        transform: `translate3d(${card.x}px, ${card.y}px, 0) ${card.tapped ? 'rotate(90deg)' : ''}`,
         touchAction: 'none'
       }}
       onContextMenu={(e) => {
@@ -54,6 +59,6 @@ export const Card: React.FC<CardProps> = ({ card, onTap, onLongPress }) => {
       ) : (
         <span className="text-xs text-center p-1 pointer-events-none text-white font-bold">{card.name}</span>
       )}
-    </div>
+    </motion.div>
   );
 };
