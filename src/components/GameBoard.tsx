@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { usePinch, useDrag } from '@use-gesture/react';
 import { useGameStore } from '../store/useGameStore';
 import type { GameCard } from '../store/useGameStore';
@@ -31,21 +32,68 @@ export const GameBoard: React.FC = () => {
     };
   }, []);
 
-  // Set initial camera focus based on user's seat
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const maxPlayers = parseInt(searchParams.get('max') || '4', 10);
+
+  // Dynamic Layout Algorithm
+  // We want to arrange `maxPlayers` playmats in a circle or facing rows.
+  // 1 or 2 players: 1 top, 1 bottom
+  // 3 or 4 players: 2 top, 2 bottom (like the old 2x2 grid)
+  // 5 or 6 players: 3 top, 3 bottom
+  
+  const cols = Math.ceil(maxPlayers / 2);
+  const playmatWidth = 1200;
+  const playmatHeight = 700;
+  const padding = 100;
+  
+  const tableWidth = cols * playmatWidth + (cols + 1) * padding;
+  const tableHeight = 2 * playmatHeight + 3 * padding;
+
+  const generateSeatPositions = () => {
+    const seats: Record<string, { x: number, y: number, rotate: number }> = {};
+    const colors = ['red', 'blue', 'yellow', 'white', 'green', 'purple']; // extended colors
+    
+    for (let i = 0; i < maxPlayers; i++) {
+      const isTopRow = i >= Math.ceil(maxPlayers / 2);
+      const colIndex = i % Math.ceil(maxPlayers / 2);
+      
+      seats[colors[i % colors.length]] = {
+        x: padding + colIndex * (playmatWidth + padding),
+        y: isTopRow ? padding : tableHeight - padding - playmatHeight,
+        rotate: isTopRow ? 180 : 0
+      };
+    }
+    return seats;
+  };
+  
+  const seatPositions = generateSeatPositions();
+
+  // Initialize the camera zoomed in on the local player's specific quadrant
   useEffect(() => {
     const myPlayer = players[myPlayerId];
-    if (myPlayer) {
-      // The board is 2400x1400. 
-      // Playmats are at the corners. We want to zoom into the specific quadrant.
-      let initX = 0, initY = 0;
-      if (myPlayer.seatColor === 'red') { initX = 600; initY = -350; }
-      else if (myPlayer.seatColor === 'white') { initX = -600; initY = -350; }
-      else if (myPlayer.seatColor === 'yellow') { initX = 600; initY = 350; }
-      else if (myPlayer.seatColor === 'blue') { initX = -600; initY = 350; }
+    if (myPlayer && seatPositions[myPlayer.seatColor]) {
+      const pos = seatPositions[myPlayer.seatColor];
+      // Target coordinates: the center of their playmat
+      const targetX = pos.x + playmatWidth / 2;
+      const targetY = pos.y + playmatHeight / 2;
       
-      setTransform({ x: initX, y: initY, scale: 2.2 }); // tightly zoomed on one playmat
+      const scale = 1.8;
+      
+      // We want targetX * scale + translateX = window.innerWidth / 2
+      const initX = window.innerWidth / 2 - (targetX * scale);
+      const initY = window.innerHeight / 2 - (targetY * scale);
+      
+      setTransform({ x: initX, y: initY, scale });
+    } else {
+      // Default center zoom if seat color isn't assigned yet
+      setTransform({
+        x: window.innerWidth / 2 - (tableWidth / 2) * 1.0,
+        y: window.innerHeight / 2 - (tableHeight / 2) * 1.0,
+        scale: 1.0
+      });
     }
-  }, [myPlayerId, players]);
+  }, [myPlayerId, players, maxPlayers]);
 
   const bindDrag = useDrag(({ movement: [dx, dy], memo = [x, y], event, tap }) => {
     if (tap) return memo;
@@ -87,12 +135,6 @@ export const GameBoard: React.FC = () => {
     }
   };
 
-  const seatPositions = [
-    { color: 'red', pos: 'bottom-left' },
-    { color: 'white', pos: 'bottom-right' },
-    { color: 'yellow', pos: 'top-left' },
-    { color: 'blue', pos: 'top-right' }
-  ] as const;
 
   return (
     <div 
@@ -102,12 +144,27 @@ export const GameBoard: React.FC = () => {
       style={{ touchAction: 'none' }}
     >
       <div
-        className="w-[2400px] h-[1400px] origin-center absolute top-1/2 left-1/2 border-2 border-gray-800 rounded-3xl bg-[#1a1a1a]"
-        style={{ transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})` }}
+        className="origin-center absolute top-1/2 left-1/2 border-2 border-gray-800 rounded-3xl bg-[#1a1a1a]"
+        style={{ 
+          width: tableWidth, 
+          height: tableHeight, 
+          transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})` 
+        }}
       >
-        {/* Playmats */}
-        {seatPositions.map((seat, i) => (
-           <Playmat key={i} color={seat.color} position={seat.pos as any} />
+        {/* Dynamic Playmats */}
+        {Object.entries(seatPositions).map(([color, pos]) => (
+          <div 
+            key={color}
+            className="absolute"
+            style={{
+              transform: `translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotate}deg)`,
+              width: playmatWidth,
+              height: playmatHeight
+            }}
+          >
+            {/* Find player assigned to this color, if any */}
+            <Playmat player={Object.values(players).find(p => p.seatColor === color)} />
+          </div>
         ))}
 
         {/* Center Life Counters Area */}
@@ -118,17 +175,36 @@ export const GameBoard: React.FC = () => {
             </div>
 
            {Object.values(players).map((p) => {
-             let posClass = '';
-             let rotate = '';
-             let heartColor = '';
-             let nameBg = '';
-             if (p.seatColor === 'red') { posClass = 'bottom-0 left-0 -translate-x-4 translate-y-4'; rotate = ''; heartColor='text-red-600'; nameBg='bg-red-900/80'; }
-             if (p.seatColor === 'white') { posClass = 'bottom-0 right-0 translate-x-4 translate-y-4'; rotate = ''; heartColor='text-gray-100'; nameBg='bg-gray-800/80'; }
-             if (p.seatColor === 'yellow') { posClass = 'top-0 left-0 -translate-x-4 -translate-y-4'; rotate = 'rotate-180'; heartColor='text-yellow-500'; nameBg='bg-yellow-900/80'; }
-             if (p.seatColor === 'blue') { posClass = 'top-0 right-0 translate-x-4 -translate-y-4'; rotate = 'rotate-180'; heartColor='text-blue-500'; nameBg='bg-blue-900/80'; }
+             const seatPos = seatPositions[p.seatColor];
+             if (!seatPos) return null;
+             
+             // We want the life counter near the center edge of the player's mat
+             // If rotate is 0 (bottom row), place it near the top center of their mat.
+             // If rotate is 180 (top row), place it near the bottom center of their mat.
+             const isTop = seatPos.rotate === 180;
+             const px = seatPos.x + playmatWidth / 2;
+             const py = isTop ? seatPos.y + playmatHeight + 50 : seatPos.y - 50;
+             
+             // Translate from table top-left (px, py) to center-relative for absolute positioning
+             // Wait, the center area is absolute top-1/2 left-1/2, meaning (0,0) is center of table.
+             const centerX = px - tableWidth / 2;
+             const centerY = py - tableHeight / 2;
+
+             let heartColor = 'text-gray-400';
+             let nameBg = 'bg-gray-800/80';
+             if (p.seatColor === 'red') { heartColor='text-red-600'; nameBg='bg-red-900/80'; }
+             else if (p.seatColor === 'blue') { heartColor='text-blue-500'; nameBg='bg-blue-900/80'; }
+             else if (p.seatColor === 'yellow') { heartColor='text-yellow-500'; nameBg='bg-yellow-900/80'; }
+             else if (p.seatColor === 'white') { heartColor='text-gray-100'; nameBg='bg-gray-700/80'; }
+             else if (p.seatColor === 'green') { heartColor='text-green-500'; nameBg='bg-green-900/80'; }
+             else if (p.seatColor === 'purple') { heartColor='text-purple-500'; nameBg='bg-purple-900/80'; }
              
              return (
-               <div key={p.id} className={`absolute w-24 h-24 flex flex-col items-center justify-center ${posClass} ${rotate} pointer-events-auto`}>
+               <div 
+                 key={p.id} 
+                 className={`absolute w-24 h-24 flex flex-col items-center justify-center pointer-events-auto ${isTop ? 'rotate-180' : ''}`}
+                 style={{ transform: `translate(${centerX - 48}px, ${centerY - 48}px) ${isTop ? 'rotate(180deg)' : ''}` }}
+               >
                   <div className="relative flex items-center justify-center cursor-pointer group select-none hover:scale-110 transition-transform">
                     <Heart size={80} className={`${heartColor} fill-current drop-shadow-2xl`} />
                     <span className="absolute text-3xl font-black text-black/80">{p.life}</span>
